@@ -3,176 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Osho Audio - Opening Playlist</title>
+    <title>Osho Audio - Open Playlist</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            text-align: center;
-            padding: 50px 20px;
-            margin: 0;
             min-height: 100vh;
             display: flex;
-            flex-direction: column;
+            align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 20px;
         }
+        
         .container {
             max-width: 400px;
-            margin: 0 auto;
+            width: 100%;
+            padding: 40px 30px;
             background: rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 20px;
             backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
-        .logo {
-            font-size: 48px;
-            margin-bottom: 20px;
+        
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: #007AFF;
+            border-radius: 18px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            box-shadow: 0 4px 16px rgba(0, 122, 255, 0.4);
         }
+        
         h1 {
-            font-size: 24px;
-            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 10px;
         }
+        
         .playlist-info {
-            background: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
             padding: 20px;
-            border-radius: 15px;
+            border-radius: 12px;
             margin: 20px 0;
         }
-        .btn {
-            display: inline-block;
-            background: #4CAF50;
-            color: white;
-            padding: 15px 30px;
-            text-decoration: none;
-            border-radius: 25px;
-            margin: 10px;
-            font-weight: bold;
-            transition: all 0.3s;
+        
+        .playlist-name {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
-        .btn:hover {
-            background: #45a049;
+        
+        .track-count {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #007AFF;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056CC;
             transform: translateY(-2px);
         }
+        
         .btn-secondary {
             background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
         }
-        .loading {
-            display: none;
-            margin: 20px 0;
+        
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
         }
-        .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-top: 3px solid white;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .instructions {
-            margin-top: 30px;
+        
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
             font-size: 14px;
-            opacity: 0.8;
+        }
+        
+        .status.loading {
+            background: rgba(255, 193, 7, 0.2);
+            color: #FFC107;
+        }
+        
+        .status.success {
+            background: rgba(40, 167, 69, 0.2);
+            color: #28A745;
+        }
+        
+        .status.error {
+            background: rgba(220, 53, 69, 0.2);
+            color: #DC3545;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .playlist-name {
+                font-size: 18px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">🎵</div>
+        <div class="app-icon">🎵</div>
         <h1>Osho Audio</h1>
         
-        <div class="playlist-info" id="playlistInfo">
-            <div id="playlistName">Loading playlist...</div>
-            <div id="trackCount"></div>
+        <div class="playlist-info">
+            <div class="playlist-name" id="playlistName">Loading playlist...</div>
+            <div class="track-count" id="trackCount"></div>
         </div>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Opening Osho Audio app...</p>
+        
+        <div class="buttons">
+            <a href="#" class="btn btn-primary" id="openAppBtn">
+                📱 Open in Osho Audio
+            </a>
+            <a href="#" class="btn btn-secondary" id="appStoreBtn" style="display: none;">
+                ⬇️ Download from App Store
+            </a>
+            <button class="btn btn-secondary" id="copyLinkBtn">
+                📋 Copy Link
+            </button>
         </div>
-
-        <a href="#" class="btn" id="openAppBtn">Open in App</a>
-        <br>
-        <a href="#" class="btn btn-secondary" id="copyLinkBtn">Copy Link</a>
-
-        <div class="instructions">
-            <p><strong>Don't have the app?</strong></p>
-            <p>Download Osho Audio from the App Store to listen to these beautiful discourses.</p>
+        
+        <div class="status loading" id="status">
+            Preparing to open app...
+        </div>
+        
+        <div class="footer">
+            Share beautiful Osho discourses with friends
         </div>
     </div>
 
     <script>
-        // Extract URL parameters
+        // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const playlistName = urlParams.get('name') || 'Unknown Playlist';
+        const playlistName = urlParams.get('name') || 'Playlist';
         const trackCount = urlParams.get('tracks') || '0';
-        const groupId = urlParams.get('id');
-
-        // Build deep link
-        let deepLink = 'oshoaudio://open/group?';
-        deepLink += `name=${encodeURIComponent(playlistName)}`;
-        deepLink += `&tracks=${trackCount}`;
-        if (groupId) {
-            deepLink += `&id=${groupId}`;
-        }
-
-        // Update UI
-        document.getElementById('playlistName').textContent = playlistName;
+        const groupId = urlParams.get('id') || '';
+        
+        // Update UI with playlist info
+        document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
         document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
-        document.getElementById('openAppBtn').href = deepLink;
-
-        // Auto-redirect on mobile
+        
+        // Build deep link URL
+        const deepLinkParams = new URLSearchParams();
+        deepLinkParams.append('name', playlistName);
+        deepLinkParams.append('tracks', trackCount);
+        if (groupId) deepLinkParams.append('id', groupId);
+        
+        const deepLinkURL = `oshoaudio://open/group?${deepLinkParams.toString()}`;
+        
+        // TODO: Replace with your actual App Store URL when app is published
+        const appStoreURL = 'https://apps.apple.com/app/osho-audio/id123456789'; // Update this!
+        
+        // Update button links
+        document.getElementById('openAppBtn').href = deepLinkURL;
+        document.getElementById('appStoreBtn').href = appStoreURL;
+        
+        // Device detection
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isAndroid = /Android/.test(navigator.userAgent);
+        const isMobile = isIOS || isAndroid;
+        
+        // Auto-redirect logic with fallback to App Store
+        let appOpened = false;
+        let redirectTimer;
+        
         function attemptAppOpen() {
-            document.getElementById('loading').style.display = 'block';
-            window.location.href = deepLink;
+            const status = document.getElementById('status');
             
-            // Fallback: hide loading after 3 seconds if app doesn't open
-            setTimeout(() => {
-                document.getElementById('loading').style.display = 'none';
-            }, 3000);
+            if (isMobile) {
+                status.textContent = 'Opening Osho Audio app...';
+                status.className = 'status loading';
+                
+                // Try to open the app
+                window.location.href = deepLinkURL;
+                appOpened = true;
+                
+                // Set a timer to redirect to App Store if app doesn't open
+                redirectTimer = setTimeout(() => {
+                    if (!document.hidden && !appOpened) {
+                        status.textContent = 'App not installed. Redirecting to App Store...';
+                        status.className = 'status error';
+                        
+                        // Show App Store button
+                        document.getElementById('appStoreBtn').style.display = 'block';
+                        
+                        // Auto redirect to App Store after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = appStoreURL;
+                        }, 2000);
+                    }
+                }, 3000); // Wait 3 seconds to see if app opens
+                
+            } else {
+                status.textContent = 'Please open this link on your mobile device';
+                status.className = 'status error';
+                document.getElementById('appStoreBtn').style.display = 'block';
+            }
         }
-
-        // Copy link functionality
-        document.getElementById('copyLinkBtn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                await navigator.clipboard.writeText(deepLink);
-                e.target.textContent = 'Copied!';
+        
+        // Handle visibility change (app opening will hide the browser)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && redirectTimer) {
+                // App likely opened, cancel App Store redirect
+                clearTimeout(redirectTimer);
+                appOpened = true;
+                
+                // Update status when user comes back
                 setTimeout(() => {
-                    e.target.textContent = 'Copy Link';
-                }, 2000);
-            } catch (err) {
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = deepLink;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                e.target.textContent = 'Copied!';
-                setTimeout(() => {
-                    e.target.textContent = 'Copy Link';
-                }, 2000);
+                    if (!document.hidden) {
+                        document.getElementById('status').textContent = 'Welcome back! Enjoy your playlist 🎵';
+                        document.getElementById('status').className = 'status success';
+                    }
+                }, 1000);
             }
         });
-
-        // Auto-open on mobile devices
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if (isMobile) {
-            // Try to open app immediately
-            setTimeout(attemptAppOpen, 1000);
-        }
-
-        // Manual open button
+        
+        // Handle page focus (another way to detect app opening)
+        window.addEventListener('blur', () => {
+            if (redirectTimer) {
+                clearTimeout(redirectTimer);
+                appOpened = true;
+            }
+        });
+        
+        // Manual button clicks
         document.getElementById('openAppBtn').addEventListener('click', (e) => {
             e.preventDefault();
             attemptAppOpen();
         });
+        
+        document.getElementById('copyLinkBtn').addEventListener('click', () => {
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                const btn = document.getElementById('copyLinkBtn');
+                const originalText = btn.textContent;
+                btn.textContent = '✅ Copied!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 2000);
+            });
+        });
+        
+        // Auto-attempt on page load (only on mobile)
+        if (isMobile) {
+            // Wait a moment for page to fully load
+            setTimeout(attemptAppOpen, 500);
+        } else {
+            document.getElementById('status').textContent = 'Open this link on your mobile device to use the app';
+            document.getElementById('status').className = 'status error';
+        }
     </script>
 </body>
-</html>
+</html> 
