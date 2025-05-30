@@ -166,19 +166,19 @@
         </div>
         
         <div class="buttons">
-            <a href="#" class="btn btn-primary" id="openAppBtn">
-                📱 Open in Osho Dhara
+            <a href="#" class="btn btn-primary" id="downloadBtn">
+                ⬇️ Download Osho Dhara App
             </a>
-            <a href="#" class="btn btn-secondary" id="appStoreBtn" style="display: none;">
-                ⬇️ Download from App Store
-            </a>
+            <button class="btn btn-secondary" id="haveAppBtn">
+                📱 I already have the app
+            </button>
             <button class="btn btn-secondary" id="copyLinkBtn">
                 📋 Copy Link
             </button>
         </div>
         
-        <div class="status loading" id="status">
-            Preparing to open app...
+        <div class="status" id="status" style="display: none;">
+            <!-- Status will be shown when needed -->
         </div>
         
         <div class="footer">
@@ -212,135 +212,110 @@
         // App Store URL for Osho Dhara
         const appStoreURL = 'https://apps.apple.com/app/id6738623487';
         
-        // Update button links
-        document.getElementById('openAppBtn').href = deepLinkURL;
-        document.getElementById('appStoreBtn').href = appStoreURL;
-        
         // Device detection
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = isIOS || isAndroid;
         
-        // Smart app detection variables
+        // Variables for app opening
         let appOpened = false;
         let redirectTimer;
-        let countdown = 3;
-        let startTime;
         
-        // Improved app detection function
-        function attemptAppOpen() {
+        // Function to show status message
+        function showStatus(message, type = 'loading') {
             const status = document.getElementById('status');
-            
-            if (!isMobile) {
-                status.textContent = 'Please open this link on your mobile device';
-                status.className = 'status error';
-                document.getElementById('appStoreBtn').style.display = 'block';
-                return;
-            }
-            
-            status.textContent = 'Checking if Osho Dhara is installed...';
-            status.className = 'status loading';
-            
-            console.log('📱 Attempting to detect app installation');
-            startTime = Date.now();
-            
-            // Create hidden iframe to attempt deep link (less intrusive than window.location)
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = deepLinkURL;
-            document.body.appendChild(iframe);
-            
-            // Set up detection timer
-            redirectTimer = setTimeout(() => {
-                const timeElapsed = Date.now() - startTime;
-                console.log(`⏰ Time elapsed: ${timeElapsed}ms`);
-                
-                // Remove iframe
-                if (iframe.parentNode) {
-                    iframe.parentNode.removeChild(iframe);
-                }
-                
-                if (!appOpened && !document.hidden) {
-                    console.log('📱 App not detected, redirecting to App Store');
-                    showAppStoreRedirect();
-                }
-            }, 1500); // Shorter detection window
-            
-            // Fallback: try window.location after iframe attempt
-            setTimeout(() => {
-                if (!appOpened && !document.hidden) {
-                    console.log('🔄 Fallback: trying window.location');
-                    window.location.href = deepLinkURL;
-                }
-            }, 500);
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
         }
         
-        function showAppStoreRedirect() {
-            const status = document.getElementById('status');
+        // Function to hide status
+        function hideStatus() {
+            document.getElementById('status').style.display = 'none';
+        }
+        
+        // Function to attempt opening the app (only called when user confirms they have it)
+        function attemptAppOpen() {
+            console.log('📱 User confirmed they have the app, attempting to open');
+            showStatus('Opening Osho Dhara...', 'loading');
             
-            status.textContent = 'Osho Dhara not installed. Redirecting to App Store...';
-            status.className = 'status error';
+            const startTime = Date.now();
             
-            // Show App Store button immediately
-            document.getElementById('appStoreBtn').style.display = 'block';
+            // Try to open the app
+            window.location.href = deepLinkURL;
             
-            // Start countdown
-            const countdownTimer = setInterval(() => {
-                countdown--;
-                status.textContent = `Opening App Store in ${countdown}...`;
-                
-                if (countdown <= 0) {
-                    clearInterval(countdownTimer);
-                    status.textContent = 'Opening App Store...';
-                    window.location.href = appStoreURL;
+            // Set up detection for app opening
+            redirectTimer = setTimeout(() => {
+                if (!appOpened && !document.hidden) {
+                    console.log('⏰ App didn\'t open, showing fallback options');
+                    showStatus('Having trouble opening the app? Try downloading it again.', 'error');
+                    
+                    // Show download button as fallback
+                    setTimeout(() => {
+                        showStatus('Redirecting to App Store for fresh download...', 'loading');
+                        setTimeout(() => {
+                            window.location.href = appStoreURL;
+                        }, 2000);
+                    }, 3000);
                 }
-            }, 1000);
+            }, 2000);
         }
         
         // Handle visibility change (app opening will hide the browser)
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && redirectTimer) {
-                console.log('📱 App opened (page hidden)');
+                console.log('📱 App opened successfully');
                 clearTimeout(redirectTimer);
                 appOpened = true;
                 
                 // Update status when user comes back
                 setTimeout(() => {
                     if (!document.hidden) {
-                        document.getElementById('status').textContent = 'Welcome back! Enjoy your playlist 🎵';
-                        document.getElementById('status').className = 'status success';
+                        showStatus('Welcome back! Enjoy your playlist 🎵', 'success');
                     }
                 }, 1000);
             }
         });
         
-        // Handle page focus/blur (another way to detect app opening)
+        // Handle page blur/focus
         let blurTime = 0;
         
         window.addEventListener('blur', () => {
             blurTime = Date.now();
-            console.log('📱 Page blurred at:', blurTime);
         });
         
         window.addEventListener('focus', () => {
             if (blurTime > 0) {
-                const focusTime = Date.now();
-                const timeDiff = focusTime - blurTime;
-                console.log('📱 Page focused after:', timeDiff, 'ms');
-                
-                // If page was blurred for more than 1 second, app likely opened
+                const timeDiff = Date.now() - blurTime;
                 if (timeDiff > 1000 && redirectTimer) {
-                    console.log('📱 App opened (long blur detected)');
+                    console.log('📱 App opened (detected via focus timing)');
                     clearTimeout(redirectTimer);
                     appOpened = true;
                 }
             }
         });
         
-        // Manual button clicks
-        document.getElementById('openAppBtn').addEventListener('click', (e) => {
+        // Button event listeners
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            attemptAppOpen();
+            console.log('🔽 User clicked download button');
+            showStatus('Taking you to the App Store...', 'loading');
+            
+            setTimeout(() => {
+                window.location.href = appStoreURL;
+            }, 1000);
+        });
+        
+        document.getElementById('haveAppBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('✅ User confirmed they have the app');
+            
+            // Show confirmation and attempt to open
+            showStatus('Great! This will open Osho Dhara app...', 'success');
+            
+            setTimeout(() => {
+                attemptAppOpen();
+            }, 1500);
         });
         
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
@@ -348,20 +323,26 @@
                 const btn = document.getElementById('copyLinkBtn');
                 const originalText = btn.textContent;
                 btn.textContent = '✅ Copied!';
+                showStatus('Link copied! Share it with friends.', 'success');
+                
                 setTimeout(() => {
                     btn.textContent = originalText;
-                }, 2000);
+                    hideStatus();
+                }, 3000);
+            }).catch(() => {
+                showStatus('Copy not supported. Long press the URL to copy manually.', 'error');
             });
         });
         
-        // Auto-attempt on page load (only on mobile)
-        if (isMobile) {
-            // Wait a moment for page to fully load
-            setTimeout(attemptAppOpen, 800);
-        } else {
-            document.getElementById('status').textContent = 'Open this link on your mobile device to use the app';
-            document.getElementById('status').className = 'status error';
+        // Handle desktop users
+        if (!isMobile) {
+            showStatus('Please open this link on your mobile device to use the app', 'error');
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('haveAppBtn').style.display = 'none';
         }
+        
+        // No auto-attempt! User chooses their path
+        console.log('🎯 Ready - user will choose their option');
     </script>
 </body>
 </html> 
