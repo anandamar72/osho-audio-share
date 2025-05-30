@@ -204,7 +204,7 @@
         document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
         document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
         
-        // Build deep link URL - use the ORIGINAL encoded name, not re-encoded
+        // Build deep link URL
         const deepLinkURL = `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`;
         
         console.log('🔗 Generated Deep Link:', deepLinkURL);
@@ -221,58 +221,85 @@
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = isIOS || isAndroid;
         
-        // Auto-redirect logic with fallback to App Store
+        // Smart app detection variables
         let appOpened = false;
         let redirectTimer;
         let countdown = 3;
+        let startTime;
         
+        // Improved app detection function
         function attemptAppOpen() {
             const status = document.getElementById('status');
             
-            if (isMobile) {
-                status.textContent = 'Trying to open Osho Dhara app...';
-                status.className = 'status loading';
-                
-                console.log('📱 Attempting to open app with URL:', deepLinkURL);
-                
-                // Try to open the app
-                window.location.href = deepLinkURL;
-                
-                // Set a timer to redirect to App Store if app doesn't open
-                redirectTimer = setTimeout(() => {
-                    if (!document.hidden) {
-                        console.log('⏰ App didn\'t open, redirecting to App Store');
-                        status.textContent = 'App not installed. Redirecting to App Store...';
-                        status.className = 'status error';
-                        
-                        // Show App Store button immediately
-                        document.getElementById('appStoreBtn').style.display = 'block';
-                        
-                        // Start countdown
-                        const countdownTimer = setInterval(() => {
-                            countdown--;
-                            status.textContent = `Redirecting to App Store in ${countdown}...`;
-                            
-                            if (countdown <= 0) {
-                                clearInterval(countdownTimer);
-                                status.textContent = 'Opening App Store...';
-                                window.location.href = appStoreURL;
-                            }
-                        }, 1000);
-                    }
-                }, 2000); // Wait 2 seconds to see if app opens
-                
-            } else {
+            if (!isMobile) {
                 status.textContent = 'Please open this link on your mobile device';
                 status.className = 'status error';
                 document.getElementById('appStoreBtn').style.display = 'block';
+                return;
             }
+            
+            status.textContent = 'Checking if Osho Dhara is installed...';
+            status.className = 'status loading';
+            
+            console.log('📱 Attempting to detect app installation');
+            startTime = Date.now();
+            
+            // Create hidden iframe to attempt deep link (less intrusive than window.location)
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = deepLinkURL;
+            document.body.appendChild(iframe);
+            
+            // Set up detection timer
+            redirectTimer = setTimeout(() => {
+                const timeElapsed = Date.now() - startTime;
+                console.log(`⏰ Time elapsed: ${timeElapsed}ms`);
+                
+                // Remove iframe
+                if (iframe.parentNode) {
+                    iframe.parentNode.removeChild(iframe);
+                }
+                
+                if (!appOpened && !document.hidden) {
+                    console.log('📱 App not detected, redirecting to App Store');
+                    showAppStoreRedirect();
+                }
+            }, 1500); // Shorter detection window
+            
+            // Fallback: try window.location after iframe attempt
+            setTimeout(() => {
+                if (!appOpened && !document.hidden) {
+                    console.log('🔄 Fallback: trying window.location');
+                    window.location.href = deepLinkURL;
+                }
+            }, 500);
+        }
+        
+        function showAppStoreRedirect() {
+            const status = document.getElementById('status');
+            
+            status.textContent = 'Osho Dhara not installed. Redirecting to App Store...';
+            status.className = 'status error';
+            
+            // Show App Store button immediately
+            document.getElementById('appStoreBtn').style.display = 'block';
+            
+            // Start countdown
+            const countdownTimer = setInterval(() => {
+                countdown--;
+                status.textContent = `Opening App Store in ${countdown}...`;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownTimer);
+                    status.textContent = 'Opening App Store...';
+                    window.location.href = appStoreURL;
+                }
+            }, 1000);
         }
         
         // Handle visibility change (app opening will hide the browser)
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && redirectTimer) {
-                // App likely opened, cancel App Store redirect
                 console.log('📱 App opened (page hidden)');
                 clearTimeout(redirectTimer);
                 appOpened = true;
@@ -287,12 +314,26 @@
             }
         });
         
-        // Handle page focus (another way to detect app opening)
+        // Handle page focus/blur (another way to detect app opening)
+        let blurTime = 0;
+        
         window.addEventListener('blur', () => {
-            if (redirectTimer) {
-                console.log('📱 App opened (page blurred)');
-                clearTimeout(redirectTimer);
-                appOpened = true;
+            blurTime = Date.now();
+            console.log('📱 Page blurred at:', blurTime);
+        });
+        
+        window.addEventListener('focus', () => {
+            if (blurTime > 0) {
+                const focusTime = Date.now();
+                const timeDiff = focusTime - blurTime;
+                console.log('📱 Page focused after:', timeDiff, 'ms');
+                
+                // If page was blurred for more than 1 second, app likely opened
+                if (timeDiff > 1000 && redirectTimer) {
+                    console.log('📱 App opened (long blur detected)');
+                    clearTimeout(redirectTimer);
+                    appOpened = true;
+                }
             }
         });
         
@@ -316,7 +357,7 @@
         // Auto-attempt on page load (only on mobile)
         if (isMobile) {
             // Wait a moment for page to fully load
-            setTimeout(attemptAppOpen, 500);
+            setTimeout(attemptAppOpen, 800);
         } else {
             document.getElementById('status').textContent = 'Open this link on your mobile device to use the app';
             document.getElementById('status').className = 'status error';
