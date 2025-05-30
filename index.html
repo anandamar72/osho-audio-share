@@ -158,7 +158,7 @@
 <body>
     <div class="container">
         <div class="app-icon">🎵</div>
-        <h1>Osho Audio</h1>
+        <h1>Osho Dhara</h1>
         
         <div class="playlist-info">
             <div class="playlist-name" id="playlistName">Loading playlist...</div>
@@ -167,7 +167,7 @@
         
         <div class="buttons">
             <a href="#" class="btn btn-primary" id="openAppBtn">
-                📱 Open in Osho Audio
+                📱 Open in Osho Dhara
             </a>
             <a href="#" class="btn btn-secondary" id="appStoreBtn" style="display: none;">
                 ⬇️ Download from App Store
@@ -186,7 +186,7 @@
         </div>
     </div>
 
-        <script>
+    <script>
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const playlistName = urlParams.get('name') || 'Playlist';
@@ -209,8 +209,8 @@
         
         console.log('🔗 Generated Deep Link:', deepLinkURL);
         
-        // TODO: Replace with your actual App Store URL when app is published
-        const appStoreURL = 'https://apps.apple.com/app/id6738623487'; // Osho Dhara - Real App Store URL
+        // App Store URL for Osho Dhara
+        const appStoreURL = 'https://apps.apple.com/app/id6738623487';
         
         // Update button links
         document.getElementById('openAppBtn').href = deepLinkURL;
@@ -224,36 +224,43 @@
         // Auto-redirect logic with fallback to App Store
         let appOpened = false;
         let redirectTimer;
+        let countdown = 3;
         
         function attemptAppOpen() {
             const status = document.getElementById('status');
             
             if (isMobile) {
-                status.textContent = 'Opening Osho Dhara app...';
+                status.textContent = 'Trying to open Osho Dhara app...';
                 status.className = 'status loading';
                 
                 console.log('📱 Attempting to open app with URL:', deepLinkURL);
                 
                 // Try to open the app
                 window.location.href = deepLinkURL;
-                appOpened = true;
                 
                 // Set a timer to redirect to App Store if app doesn't open
                 redirectTimer = setTimeout(() => {
-                    if (!document.hidden && !appOpened) {
+                    if (!document.hidden) {
                         console.log('⏰ App didn\'t open, redirecting to App Store');
                         status.textContent = 'App not installed. Redirecting to App Store...';
                         status.className = 'status error';
                         
-                        // Show App Store button
+                        // Show App Store button immediately
                         document.getElementById('appStoreBtn').style.display = 'block';
                         
-                        // Auto redirect to App Store after 2 seconds
-                        setTimeout(() => {
-                            window.location.href = appStoreURL;
-                        }, 2000);
+                        // Start countdown
+                        const countdownTimer = setInterval(() => {
+                            countdown--;
+                            status.textContent = `Redirecting to App Store in ${countdown}...`;
+                            
+                            if (countdown <= 0) {
+                                clearInterval(countdownTimer);
+                                status.textContent = 'Opening App Store...';
+                                window.location.href = appStoreURL;
+                            }
+                        }, 1000);
                     }
-                }, 3000); // Wait 3 seconds to see if app opens
+                }, 2000); // Wait 2 seconds to see if app opens
                 
             } else {
                 status.textContent = 'Please open this link on your mobile device';
