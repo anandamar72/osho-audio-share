@@ -186,27 +186,31 @@
         </div>
     </div>
 
-    <script>
+        <script>
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const playlistName = urlParams.get('name') || 'Playlist';
         const trackCount = urlParams.get('tracks') || '0';
         const groupId = urlParams.get('id') || '';
         
+        // Debug logging
+        console.log('🔧 Debug Info:');
+        console.log('Original URL:', window.location.href);
+        console.log('Playlist Name (raw):', playlistName);
+        console.log('Track Count:', trackCount);
+        console.log('Group ID:', groupId);
+        
         // Update UI with playlist info
         document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
         document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
         
-        // Build deep link URL
-        const deepLinkParams = new URLSearchParams();
-        deepLinkParams.append('name', playlistName);
-        deepLinkParams.append('tracks', trackCount);
-        if (groupId) deepLinkParams.append('id', groupId);
+        // Build deep link URL - use the ORIGINAL encoded name, not re-encoded
+        const deepLinkURL = `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`;
         
-        const deepLinkURL = `oshoaudio://open/group?${deepLinkParams.toString()}`;
+        console.log('🔗 Generated Deep Link:', deepLinkURL);
         
         // TODO: Replace with your actual App Store URL when app is published
-        const appStoreURL = 'https://apps.apple.com/app/id6738623487'; // Update this!
+        const appStoreURL = 'https://apps.apple.com/app/id6738623487'; // Osho Dhara - Real App Store URL
         
         // Update button links
         document.getElementById('openAppBtn').href = deepLinkURL;
@@ -225,8 +229,10 @@
             const status = document.getElementById('status');
             
             if (isMobile) {
-                status.textContent = 'Opening Osho Audio app...';
+                status.textContent = 'Opening Osho Dhara app...';
                 status.className = 'status loading';
+                
+                console.log('📱 Attempting to open app with URL:', deepLinkURL);
                 
                 // Try to open the app
                 window.location.href = deepLinkURL;
@@ -235,6 +241,7 @@
                 // Set a timer to redirect to App Store if app doesn't open
                 redirectTimer = setTimeout(() => {
                     if (!document.hidden && !appOpened) {
+                        console.log('⏰ App didn\'t open, redirecting to App Store');
                         status.textContent = 'App not installed. Redirecting to App Store...';
                         status.className = 'status error';
                         
@@ -259,6 +266,7 @@
         document.addEventListener('visibilitychange', () => {
             if (document.hidden && redirectTimer) {
                 // App likely opened, cancel App Store redirect
+                console.log('📱 App opened (page hidden)');
                 clearTimeout(redirectTimer);
                 appOpened = true;
                 
@@ -275,6 +283,7 @@
         // Handle page focus (another way to detect app opening)
         window.addEventListener('blur', () => {
             if (redirectTimer) {
+                console.log('📱 App opened (page blurred)');
                 clearTimeout(redirectTimer);
                 appOpened = true;
             }
