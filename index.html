@@ -153,6 +153,24 @@
                 font-size: 18px;
             }
         }
+        
+        .debug-info {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
+            text-align: left;
+            display: none;
+        }
+        
+        .debug-toggle {
+            margin-top: 10px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -181,33 +199,65 @@
             <!-- Status will be shown when needed -->
         </div>
         
+        <div class="debug-toggle" onclick="toggleDebug()">
+            🔧 Show Debug Info
+        </div>
+        <div class="debug-info" id="debugInfo">
+            <!-- Debug info will be populated by JavaScript -->
+        </div>
+        
         <div class="footer">
             Share beautiful Osho discourses with friends
         </div>
     </div>
 
     <script>
+        // Debug logging helper
+        let debugLogs = [];
+        function debugLog(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${message}`;
+            debugLogs.push(logEntry);
+            console.log('🔧 ' + logEntry);
+            updateDebugDisplay();
+        }
+        
+        function updateDebugDisplay() {
+            const debugElement = document.getElementById('debugInfo');
+            debugElement.innerHTML = debugLogs.slice(-10).join('<br>'); // Show last 10 logs
+        }
+        
+        function toggleDebug() {
+            const debugElement = document.getElementById('debugInfo');
+            const toggle = document.querySelector('.debug-toggle');
+            if (debugElement.style.display === 'none' || !debugElement.style.display) {
+                debugElement.style.display = 'block';
+                toggle.textContent = '🔧 Hide Debug Info';
+            } else {
+                debugElement.style.display = 'none';
+                toggle.textContent = '🔧 Show Debug Info';
+            }
+        }
+
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const playlistName = urlParams.get('name') || 'Playlist';
         const trackCount = urlParams.get('tracks') || '0';
         const groupId = urlParams.get('id') || '';
         
-        // Debug logging
-        console.log('🔧 Debug Info:');
-        console.log('Original URL:', window.location.href);
-        console.log('Playlist Name (raw):', playlistName);
-        console.log('Track Count:', trackCount);
-        console.log('Group ID:', groupId);
+        debugLog(`URL Parameters: name=${playlistName}, tracks=${trackCount}, id=${groupId}`);
         
         // Update UI with playlist info
         document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
         document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
         
-        // Build deep link URL
-        const deepLinkURL = `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`;
+        // Build deep link URL - try multiple formats
+        const deepLinkFormats = [
+            `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`,
+            `oshoaudio://group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`
+        ];
         
-        console.log('🔗 Generated Deep Link:', deepLinkURL);
+        debugLog(`Generated deep links: ${deepLinkFormats.join(', ')}`);
         
         // App Store URL for Osho Dhara
         const appStoreURL = 'https://apps.apple.com/app/id6738623487';
@@ -216,10 +266,14 @@
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isAndroid = /Android/.test(navigator.userAgent);
         const isMobile = isIOS || isAndroid;
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        
+        debugLog(`Device: iOS=${isIOS}, Android=${isAndroid}, Mobile=${isMobile}, Safari=${isSafari}`);
+        debugLog(`User Agent: ${navigator.userAgent}`);
         
         // Variables for app detection
         let appInstalled = false;
-        let userInteracted = false;
+        let redirectAttempted = false;
         let startTime = 0;
         
         // Function to show status message
@@ -228,111 +282,117 @@
             status.textContent = message;
             status.className = `status ${type}`;
             status.style.display = 'block';
+            debugLog(`Status: ${message} (${type})`);
         }
         
-        // Function to hide status and buttons
+        // Function to hide manual options
         function hideManualOptions() {
             document.querySelector('.buttons').style.display = 'none';
         }
         
-        // Function to show manual options (fallback)
+        // Function to show manual options
         function showManualOptions() {
             document.querySelector('.buttons').style.display = 'flex';
         }
         
-        // Smart app detection and redirect
-        function attemptSmartRedirect() {
-            console.log('🚀 Starting smart redirect process...');
+        // Improved app detection using multiple methods
+        function attemptAppRedirect() {
+            if (redirectAttempted) {
+                debugLog('Redirect already attempted, skipping');
+                return;
+            }
+            
+            redirectAttempted = true;
+            debugLog('Starting app redirect attempt');
             showStatus('Opening your playlist...', 'loading');
             hideManualOptions();
             
             startTime = Date.now();
+            let currentFormatIndex = 0;
             
-            // Create hidden iframe to attempt app opening
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = deepLinkURL;
-            document.body.appendChild(iframe);
-            
-            // Set up app detection logic
-            const appDetectionTimeout = setTimeout(() => {
-                console.log('⏱️ App detection timeout - app likely not installed');
-                
-                if (!appInstalled && !document.hidden) {
-                    console.log('📱 App not detected, redirecting to App Store');
-                    showStatus('App not found. Taking you to App Store...', 'loading');
-                    
-                    setTimeout(() => {
-                        window.location.href = appStoreURL;
-                    }, 1500);
-                }
-                
-                // Clean up iframe
-                document.body.removeChild(iframe);
-            }, 2500); // 2.5 seconds to detect app
-            
-            // Detect if app opened successfully
-            const checkAppOpened = () => {
-                const timeElapsed = Date.now() - startTime;
-                
-                if (document.hidden || document.visibilityState === 'hidden') {
-                    console.log('✅ App opened successfully (page hidden)');
-                    appInstalled = true;
-                    clearTimeout(appDetectionTimeout);
-                    showStatus('Welcome to Osho Dhara! 🎵', 'success');
-                    document.body.removeChild(iframe);
+            function tryNextFormat() {
+                if (currentFormatIndex >= deepLinkFormats.length) {
+                    debugLog('All deep link formats failed, showing App Store');
+                    showAppStore();
                     return;
                 }
                 
-                // Check if enough time has passed
-                if (timeElapsed > 1000 && !appInstalled) {
-                    console.log('⚠️ App likely not installed (page still visible after 1s)');
+                const deepLinkURL = deepLinkFormats[currentFormatIndex];
+                debugLog(`Trying deep link format ${currentFormatIndex + 1}: ${deepLinkURL}`);
+                
+                // Method 1: Direct window.location (most reliable on iOS)
+                const appDetectionTimeout = setTimeout(() => {
+                    debugLog(`Format ${currentFormatIndex + 1} timeout - trying next format`);
+                    currentFormatIndex++;
+                    tryNextFormat();
+                }, 1500); // Shorter timeout for each attempt
+                
+                // Set up visibility change listener
+                let visibilityChanged = false;
+                const visibilityHandler = () => {
+                    if (document.hidden && !visibilityChanged) {
+                        visibilityChanged = true;
+                        clearTimeout(appDetectionTimeout);
+                        debugLog('App opened successfully (visibility change detected)');
+                        showStatus('Welcome to Osho Dhara! 🎵', 'success');
+                        document.removeEventListener('visibilitychange', visibilityHandler);
+                    }
+                };
+                
+                document.addEventListener('visibilitychange', visibilityHandler);
+                
+                // Check if page becomes hidden (app opened)
+                setTimeout(() => {
+                    if (document.hidden && !visibilityChanged) {
+                        visibilityChanged = true;
+                        clearTimeout(appDetectionTimeout);
+                        debugLog('App opened (page hidden after 800ms)');
+                        showStatus('Enjoy your playlist! 🎵', 'success');
+                        document.removeEventListener('visibilitychange', visibilityHandler);
+                    }
+                }, 800);
+                
+                // Attempt to open the app
+                try {
+                    window.location.href = deepLinkURL;
+                } catch (error) {
+                    debugLog(`Error opening deep link: ${error.message}`);
                     clearTimeout(appDetectionTimeout);
-                    
-                    showStatus('App not found. Taking you to App Store...', 'loading');
-                    setTimeout(() => {
-                        window.location.href = appStoreURL;
-                    }, 1500);
-                    
-                    document.body.removeChild(iframe);
+                    currentFormatIndex++;
+                    tryNextFormat();
                 }
-            };
+            }
             
-            // Monitor page visibility changes
-            document.addEventListener('visibilitychange', () => {
-                if (document.hidden && startTime > 0) {
-                    console.log('📱 App opened (visibility change detected)');
-                    appInstalled = true;
-                    clearTimeout(appDetectionTimeout);
-                    
-                    // Show success when user returns
-                    setTimeout(() => {
-                        if (!document.hidden) {
-                            showStatus('Welcome back! Enjoy your playlist 🎵', 'success');
-                        }
-                    }, 1000);
-                }
-            });
-            
-            // Check app opening after short delay
-            setTimeout(checkAppOpened, 1200);
+            tryNextFormat();
         }
         
-        // Fallback manual options
-        document.getElementById('downloadBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            console.log('🔽 Manual download clicked');
-            showStatus('Taking you to the App Store...', 'loading');
+        function showAppStore() {
+            debugLog('Redirecting to App Store');
+            showStatus('App not found. Taking you to App Store...', 'loading');
+            showManualOptions();
             
             setTimeout(() => {
-                window.location.href = appStoreURL;
-            }, 1000);
+                try {
+                    window.location.href = appStoreURL;
+                } catch (error) {
+                    debugLog(`Error opening App Store: ${error.message}`);
+                    showStatus('Please manually visit the App Store', 'error');
+                }
+            }, 2000);
+        }
+        
+        // Event handlers
+        document.getElementById('downloadBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            debugLog('Manual download button clicked');
+            showAppStore();
         });
         
         document.getElementById('haveAppBtn').addEventListener('click', (e) => {
             e.preventDefault();
-            console.log('✅ Manual "have app" clicked');
-            attemptSmartRedirect();
+            debugLog('Manual "have app" button clicked');
+            redirectAttempted = false; // Reset to allow retry
+            attemptAppRedirect();
         });
         
         document.getElementById('copyLinkBtn').addEventListener('click', () => {
@@ -341,44 +401,62 @@
                 const originalText = btn.textContent;
                 btn.textContent = '✅ Copied!';
                 showStatus('Link copied! Share it with friends.', 'success');
+                debugLog('Link copied to clipboard');
                 
                 setTimeout(() => {
                     btn.textContent = originalText;
                     document.getElementById('status').style.display = 'none';
                 }, 3000);
-            }).catch(() => {
+            }).catch((error) => {
+                debugLog(`Clipboard error: ${error.message}`);
                 showStatus('Copy not supported. Long press the URL to copy manually.', 'error');
             });
         });
         
-        // Handle page load - Auto attempt for mobile users
+        // Handle page load
         window.addEventListener('load', () => {
-            if (isMobile) {
-                console.log('📱 Mobile device detected - starting auto redirect in 2 seconds');
-                showStatus('Preparing to open your playlist...', 'loading');
-                
-                // Give user a moment to see the page, then auto-attempt
-                setTimeout(() => {
-                    attemptSmartRedirect();
-                }, 2000);
-            } else {
-                // Desktop users see manual options
-                console.log('💻 Desktop detected - showing manual options');
+            debugLog('Page loaded');
+            
+            if (!isMobile) {
+                debugLog('Desktop detected - showing manual options');
                 showStatus('Please open this link on your mobile device', 'error');
                 showManualOptions();
+                return;
             }
-        });
-        
-        // Handle user going back to page (app didn't open)
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted && startTime > 0) {
-                console.log('🔄 User returned - app likely not installed');
-                showStatus('Having trouble? Try downloading the app first.', 'error');
+            
+            if (!isIOS) {
+                debugLog('Non-iOS mobile detected - showing manual options');
+                showStatus('This app is only available for iPhone and iPad', 'error');
                 showManualOptions();
+                return;
+            }
+            
+            debugLog('iOS device detected - starting auto redirect');
+            showStatus('Preparing to open your playlist...', 'loading');
+            
+            // Auto-attempt for iOS users
+            setTimeout(() => {
+                attemptAppRedirect();
+            }, 1000); // Give user a moment to see the page
+        });
+        
+        // Handle page visibility changes
+        document.addEventListener('visibilitychange', () => {
+            debugLog(`Visibility changed: hidden=${document.hidden}`);
+        });
+        
+        // Handle focus events (additional app detection)
+        window.addEventListener('blur', () => {
+            if (startTime > 0 && Date.now() - startTime < 3000) {
+                debugLog('Window blur detected - app likely opened');
             }
         });
         
-        console.log('🎯 Smart redirect system ready');
+        window.addEventListener('focus', () => {
+            debugLog('Window focus returned');
+        });
+        
+        debugLog('Smart redirect system initialized');
     </script>
 </body>
 </html> 
