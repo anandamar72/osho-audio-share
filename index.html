@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Osho Dhara - Open Playlist</title>
+    <title>Osho Dhara - Open Audio</title>
     <style>
         * {
             margin: 0;
@@ -179,7 +179,7 @@
         <h1>Osho Dhara</h1>
         
         <div class="playlist-info">
-            <div class="playlist-name" id="playlistName">Loading playlist...</div>
+            <div class="playlist-name" id="playlistName">Loading...</div>
             <div class="track-count" id="trackCount"></div>
         </div>
         
@@ -218,7 +218,7 @@
             const timestamp = new Date().toLocaleTimeString();
             const logEntry = `[${timestamp}] ${message}`;
             debugLogs.push(logEntry);
-            console.log('🔧 ' + logEntry);
+            console.log('🔍 [AudioShare] ' + logEntry);
             updateDebugDisplay();
         }
         
@@ -241,23 +241,60 @@
 
         // Parse URL parameters
         const urlParams = new URLSearchParams(window.location.search);
+        const linkType = urlParams.get('type') || 'group'; // 'group', 'file', or 'audio'
         const playlistName = urlParams.get('name') || 'Playlist';
         const trackCount = urlParams.get('tracks') || '0';
         const groupId = urlParams.get('id') || '';
+        const seriesId = urlParams.get('seriesId') || '';
+        const audioNumber = urlParams.get('audio') || '';
         
-        debugLog(`URL Parameters: name=${playlistName}, tracks=${trackCount}, id=${groupId}`);
+        debugLog(`URL Parameters: type=${linkType}, name=${playlistName}, tracks=${trackCount}, id=${groupId}, seriesId=${seriesId}, audio=${audioNumber}`);
+        debugLog(`All URL params: ${Array.from(urlParams.entries()).map(([k, v]) => `${k}=${v}`).join(', ')}`);
         
-        // Update UI with playlist info
-        document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
-        document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
+        let deepLinkURL;
         
-        // Build deep link URL - try multiple formats
-        const deepLinkFormats = [
-            `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`,
-            `oshoaudio://group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`
-        ];
-        
-        debugLog(`Generated deep links: ${deepLinkFormats.join(', ')}`);
+        if (linkType === 'audio') {
+            debugLog('✅ Detected audio type link');
+            
+            if (!seriesId || !audioNumber) {
+                debugLog('❌ Missing seriesId or audioNumber');
+                showStatus('Invalid audio link - missing required parameters', 'error');
+                showManualOptions();
+            } else {
+                // Update UI for audio
+                document.getElementById('playlistName').textContent = 'Audio Track';
+                document.getElementById('trackCount').textContent = `Series: ${seriesId}, Track: ${audioNumber}`;
+                
+                // Build audio deep link URL
+                deepLinkURL = `oshoaudio://open/audio?seriesId=${encodeURIComponent(seriesId)}&audio=${encodeURIComponent(audioNumber)}`;
+                debugLog(`✅ Generated audio deep link: ${deepLinkURL}`);
+            }
+        } else if (linkType === 'file') {
+            debugLog('Detected file type link (legacy)');
+            const fileName = urlParams.get('name') || '';
+            const fileTitle = urlParams.get('title') || '';
+            const fileSource = urlParams.get('source') || '';
+            const metadata = urlParams.get('metadata') || '';
+            
+            document.getElementById('playlistName').textContent = decodeURIComponent(fileTitle || fileName);
+            document.getElementById('trackCount').textContent = 'Audio track';
+            
+            let fileParams = `name=${encodeURIComponent(fileName)}&title=${encodeURIComponent(fileTitle || fileName)}&source=${encodeURIComponent(fileSource)}`;
+            if (metadata) {
+                fileParams += `&metadata=${encodeURIComponent(metadata)}`;
+            }
+            deepLinkURL = `oshoaudio://open/file?${fileParams}`;
+            debugLog(`Generated file deep link: ${deepLinkURL}`);
+        } else {
+            // Group link (default)
+            debugLog('Detected group type link (or default)');
+            document.getElementById('playlistName').textContent = decodeURIComponent(playlistName);
+            document.getElementById('trackCount').textContent = `${trackCount} audio tracks`;
+            
+            // Build group deep link URL
+            deepLinkURL = `oshoaudio://open/group?name=${encodeURIComponent(playlistName)}&tracks=${trackCount}${groupId ? `&id=${encodeURIComponent(groupId)}` : ''}`;
+            debugLog(`Generated group deep link: ${deepLinkURL}`);
+        }
         
         // App Store URL for Osho Dhara
         const appStoreURL = 'https://apps.apple.com/app/id6738623487';
@@ -297,6 +334,13 @@
         
         // Improved app detection using multiple methods
         function attemptAppRedirect() {
+            if (!deepLinkURL) {
+                debugLog('❌ No deep link URL available');
+                showStatus('Invalid link format', 'error');
+                showManualOptions();
+                return;
+            }
+            
             if (redirectAttempted) {
                 debugLog('Redirect already attempted, skipping');
                 return;
@@ -304,66 +348,87 @@
             
             redirectAttempted = true;
             debugLog('Starting app redirect attempt');
-            showStatus('Opening your playlist...', 'loading');
+            
+            if (linkType === 'audio') {
+                showStatus('Opening your audio...', 'loading');
+            } else {
+                showStatus('Opening your playlist...', 'loading');
+            }
             hideManualOptions();
             
             startTime = Date.now();
-            let currentFormatIndex = 0;
             
-            function tryNextFormat() {
-                if (currentFormatIndex >= deepLinkFormats.length) {
-                    debugLog('All deep link formats failed, showing App Store');
+            debugLog(`Attempting to open: ${deepLinkURL}`);
+            
+            // Create hidden iframe to attempt app opening
+            const iframe = document.createElement('iframe');
+            iframe.style.display = 'none';
+            iframe.src = deepLinkURL;
+            document.body.appendChild(iframe);
+            
+            // Set up app detection logic
+            const appDetectionTimeout = setTimeout(() => {
+                debugLog('App detection timeout - app likely not installed');
+                
+                if (!appInstalled && !document.hidden) {
+                    debugLog('App not detected, redirecting to App Store');
                     showAppStore();
+                }
+                
+                // Clean up iframe
+                if (iframe.parentNode) {
+                    document.body.removeChild(iframe);
+                }
+            }, 2500); // 2.5 seconds to detect app
+            
+            // Detect if app opened successfully
+            const checkAppOpened = () => {
+                const timeElapsed = Date.now() - startTime;
+                
+                if (document.hidden || document.visibilityState === 'hidden') {
+                    debugLog('App opened successfully (page hidden)');
+                    appInstalled = true;
+                    clearTimeout(appDetectionTimeout);
+                    showStatus('Welcome to Osho Dhara! 🎵', 'success');
+                    if (iframe.parentNode) {
+                        document.body.removeChild(iframe);
+                    }
                     return;
                 }
                 
-                const deepLinkURL = deepLinkFormats[currentFormatIndex];
-                debugLog(`Trying deep link format ${currentFormatIndex + 1}: ${deepLinkURL}`);
-                
-                // Method 1: Direct window.location (most reliable on iOS)
-                const appDetectionTimeout = setTimeout(() => {
-                    debugLog(`Format ${currentFormatIndex + 1} timeout - trying next format`);
-                    currentFormatIndex++;
-                    tryNextFormat();
-                }, 1500); // Shorter timeout for each attempt
-                
-                // Set up visibility change listener
-                let visibilityChanged = false;
-                const visibilityHandler = () => {
-                    if (document.hidden && !visibilityChanged) {
-                        visibilityChanged = true;
-                        clearTimeout(appDetectionTimeout);
-                        debugLog('App opened successfully (visibility change detected)');
-                        showStatus('Welcome to Osho Dhara! 🎵', 'success');
-                        document.removeEventListener('visibilitychange', visibilityHandler);
-                    }
-                };
-                
-                document.addEventListener('visibilitychange', visibilityHandler);
-                
-                // Check if page becomes hidden (app opened)
-                setTimeout(() => {
-                    if (document.hidden && !visibilityChanged) {
-                        visibilityChanged = true;
-                        clearTimeout(appDetectionTimeout);
-                        debugLog('App opened (page hidden after 800ms)');
-                        showStatus('Enjoy your playlist! 🎵', 'success');
-                        document.removeEventListener('visibilitychange', visibilityHandler);
-                    }
-                }, 800);
-                
-                // Attempt to open the app
-                try {
-                    window.location.href = deepLinkURL;
-                } catch (error) {
-                    debugLog(`Error opening deep link: ${error.message}`);
+                // Check if enough time has passed
+                if (timeElapsed > 1000 && !appInstalled) {
+                    debugLog('App likely not installed (page still visible after 1s)');
                     clearTimeout(appDetectionTimeout);
-                    currentFormatIndex++;
-                    tryNextFormat();
+                    showAppStore();
+                    if (iframe.parentNode) {
+                        document.body.removeChild(iframe);
+                    }
                 }
-            }
+            };
             
-            tryNextFormat();
+            // Monitor page visibility changes
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden && startTime > 0) {
+                    debugLog('App opened (visibility change detected)');
+                    appInstalled = true;
+                    clearTimeout(appDetectionTimeout);
+                    
+                    // Show success when user returns
+                    setTimeout(() => {
+                        if (!document.hidden) {
+                            showStatus('Welcome back! Enjoy your audio 🎵', 'success');
+                        }
+                    }, 1000);
+                    
+                    if (iframe.parentNode) {
+                        document.body.removeChild(iframe);
+                    }
+                }
+            });
+            
+            // Check app opening after short delay
+            setTimeout(checkAppOpened, 1200);
         }
         
         function showAppStore() {
@@ -417,6 +482,16 @@
         window.addEventListener('load', () => {
             debugLog('Page loaded');
             
+            // For audio links, make sure we have the required parameters
+            if (linkType === 'audio') {
+                if (!seriesId || !audioNumber) {
+                    debugLog('❌ Missing required audio parameters');
+                    showStatus('Invalid audio link - missing series ID or audio number', 'error');
+                    showManualOptions();
+                    return;
+                }
+            }
+            
             if (!isMobile) {
                 debugLog('Desktop detected - showing manual options');
                 showStatus('Please open this link on your mobile device', 'error');
@@ -432,7 +507,12 @@
             }
             
             debugLog('iOS device detected - starting auto redirect');
-            showStatus('Preparing to open your playlist...', 'loading');
+            
+            if (linkType === 'audio') {
+                showStatus('Preparing to open your audio...', 'loading');
+            } else {
+                showStatus('Preparing to open your playlist...', 'loading');
+            }
             
             // Auto-attempt for iOS users
             setTimeout(() => {
@@ -459,4 +539,5 @@
         debugLog('Smart redirect system initialized');
     </script>
 </body>
-</html> 
+</html>
+
